@@ -25,7 +25,6 @@
 
 #include "edgetx.h"
 #include "os/timer.h"
-#include "tasks/mixer_task.h"
 
 #define AIRCAST_CHANNEL_COUNT 24
 #define AIRCAST_SEND_PERIOD_MS 20
@@ -53,7 +52,7 @@ static void aircastSendLine()
 
 static void aircastTimerCb(timer_handle_t*)
 {
-  if (mixerTaskRunning()) aircastSendLine();
+  aircastSendLine();
 }
 
 static void aircastStart()
