@@ -50,6 +50,10 @@
   #include "telemetry/ghost.h"
 #endif
 
+#if defined(AIRCAST) && !defined(BOOT)
+  #include "aircast.h"
+#endif
+
 #if defined(DEBUG_SEGGER_RTT)
   #include "thirdparty/Segger/SEGGER/SEGGER_RTT.h"
 #endif
@@ -257,6 +261,12 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
     break;
 #endif
 
+#if defined(AIRCAST)
+  case UART_MODE_AIRCAST:
+    aircastSetSerialDriver(ctx, drv);
+    break;
+#endif
+
 #if defined(CONFIGURABLE_MODULE_PORT) and !defined(BOOT)
   case UART_MODE_EXT_MODULE:
     if (port && !ctx) { // de-init
@@ -351,6 +361,13 @@ static void serialSetupPort(int mode, etx_serial_init& params)
   case UART_MODE_SPACEMOUSE:
     params.baudrate = SPACEMOUSE_BAUDRATE;
     params.direction = ETX_Dir_TX_RX;
+    break;
+#endif
+
+#if defined(AIRCAST)
+  case UART_MODE_AIRCAST:
+    params.baudrate = AIRCAST_BAUDRATE;
+    params.direction = ETX_Dir_TX;
     break;
 #endif
 

@@ -567,6 +567,19 @@ bool isSerialModeAvailable(uint8_t port_nr, int mode)
     return false;
 #endif
 
+#if !defined(AIRCAST)
+  if (mode == UART_MODE_AIRCAST)
+    return false;
+#elif defined(USB_SERIAL)
+  // Aircast streams channel outputs for a PC app on the other end of the
+  // cable; only USB-VCP has a PC on the other end
+  if (port_nr != SP_VCP && mode == UART_MODE_AIRCAST)
+    return false;
+#else
+  if (mode == UART_MODE_AIRCAST)
+    return false;
+#endif
+
   auto p = serialGetModePort(mode);
   if (p >= 0 && p != port_nr) return false;
   return true;
