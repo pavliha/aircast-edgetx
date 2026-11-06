@@ -24,10 +24,12 @@
 #include <stdio.h>
 
 #include "edgetx.h"
+#include "hal/usb_driver.h"
 #include "os/timer.h"
 
 #define AIRCAST_CHANNEL_COUNT 24
 #define AIRCAST_SEND_PERIOD_MS 20
+#define AIRCAST_LINE_BYTES 192
 
 static const etx_serial_driver_t* aircastSerialDrv = nullptr;
 static void* aircastSerialCtx = nullptr;
@@ -38,16 +40,15 @@ static void aircastSendLine()
   auto sendByte = aircastSerialDrv->sendByte;
   if (!sendByte) return;
 
-  auto put = [sendByte](char c) { sendByte(aircastSerialCtx, (uint8_t)c); };
-
-  put('$');
+  char line[AIRCAST_LINE_BYTES];
+  int len = snprintf(line, sizeof(line), "$");
   for (uint8_t i = 0; i < AIRCAST_CHANNEL_COUNT; i++) {
-    char num[8];
-    int len = snprintf(num, sizeof(num), "%d,", channelOutputs[i]);
-    for (int j = 0; j < len; j++) put(num[j]);
+    len += snprintf(line + len, sizeof(line) - len, "%d,", channelOutputs[i]);
   }
-  put('\r');
-  put('\n');
+  len += snprintf(line + len, sizeof(line) - len, "\r\n");
+
+  if (usbSerialFreeSpace() < (uint32_t)len) return;
+  for (int i = 0; i < len; i++) sendByte(aircastSerialCtx, (uint8_t)line[i]);
 }
 
 static void aircastTimerCb(timer_handle_t*)
