@@ -43,12 +43,15 @@ struct AircastFunction {
 };
 
 static const AircastFunction aircastFunctions[] = {
-    {"RS", "camPit", 18}, {"LS", "camYaw", 20}, {"S2", "zoom", 21},
+    {"RS", "camREB", 18}, {"LS", "camyaw", 20}, {"S2", "zoom", 21},
     {"SG", "camtyp", 22}, {"SH", "termty", 24}, {"SF", "skld", 11},
-    {"SE", "BOMARM", 12},
+    {"SE", "BOMARM", 12}, {"6POS", "", 5},
 };
+static const AircastFunction aircastModeSwitch = {"SB", "phold", 0};
 
 #define AIRCAST_FUNCTIONS DIM(aircastFunctions)
+#define AIRCAST_BAY (AIRCAST_FUNCTIONS - 1)
+#define AIRCAST_ROLE_COMMAS 7
 
 static const etx_serial_driver_t* aircastSerialDrv = nullptr;
 static void* aircastSerialCtx = nullptr;
@@ -60,6 +63,7 @@ static volatile uint8_t aircastRxTail = 0;
 static char aircastHeardLine[AIRCAST_HEARD_BYTES];
 static uint8_t aircastHeardLen = 0;
 static uint8_t aircastLayout[AIRCAST_FUNCTIONS];
+static uint8_t aircastModes = 0;
 static bool aircastLayoutKnown = false;
 
 static void aircastSendLine()
@@ -100,22 +104,41 @@ static uint8_t aircastFirstMix(uint8_t destCh)
   return MAX_MIXERS;
 }
 
+static void aircastSetUp(const AircastFunction& function, uint8_t channel)
+{
+  if (channel < 1 || channel > AIRCAST_CHANNEL_COUNT) return;
+  uint8_t destCh = channel - 1;
+  int source = aircastSource(function.control);
+  uint8_t first = aircastFirstMix(destCh);
+  if (source < 0 || getMixCount() >= MAX_MIXERS || first >= MAX_MIXERS) return;
+  MixData* existing = mixAddress(first);
+  if (existing->srcRaw && existing->destCh == destCh) return;
+  insertMix(first, destCh);
+  MixData* mix = mixAddress(first);
+  mix->srcRaw = source;
+  strncpy(mix->name, function.name, sizeof(mix->name));
+}
+
 static void aircastSetUpChannels()
 {
   for (uint8_t at = 0; at < AIRCAST_FUNCTIONS; at++) {
-    uint8_t channel = aircastLayout[at];
-    if (channel < 1 || channel > AIRCAST_CHANNEL_COUNT) continue;
-    uint8_t destCh = channel - 1;
-    int source = aircastSource(aircastFunctions[at].control);
-    uint8_t first = aircastFirstMix(destCh);
-    if (source < 0 || getMixCount() >= MAX_MIXERS || first >= MAX_MIXERS) continue;
-    MixData* existing = mixAddress(first);
-    if (existing->srcRaw && existing->destCh == destCh) continue;
-    insertMix(first, destCh);
-    MixData* mix = mixAddress(first);
-    mix->srcRaw = source;
-    strncpy(mix->name, aircastFunctions[at].name, sizeof(mix->name));
+    if (at == AIRCAST_BAY && !aircastModes) continue;
+    aircastSetUp(aircastFunctions[at], aircastLayout[at]);
   }
+  aircastSetUp(aircastModeSwitch, aircastModes);
+}
+
+static uint8_t aircastModesOf(const char* line)
+{
+  const char* end = strchr(line, ';');
+  const char* last = nullptr;
+  uint8_t commas = 0;
+  for (const char* c = line; *c && c != end; c++) {
+    if (*c != ',') continue;
+    commas++;
+    last = c;
+  }
+  return commas == AIRCAST_ROLE_COMMAS ? (uint8_t)strtoul(last + 1, nullptr, 10) : 0;
 }
 
 static void aircastHeard(const char* line)
@@ -132,8 +155,10 @@ static void aircastHeard(const char* line)
     layout[at] = (uint8_t)strtoul(cursor + 1, &end, 10);
     cursor = (*end == ',') ? end : nullptr;
   }
-  if (aircastLayoutKnown && !memcmp(layout, aircastLayout, sizeof(layout))) return;
+  uint8_t modes = aircastModesOf(line);
+  if (aircastLayoutKnown && modes == aircastModes && !memcmp(layout, aircastLayout, sizeof(layout))) return;
   memcpy(aircastLayout, layout, sizeof(layout));
+  aircastModes = modes;
   aircastLayoutKnown = true;
   aircastSetUpChannels();
 }
