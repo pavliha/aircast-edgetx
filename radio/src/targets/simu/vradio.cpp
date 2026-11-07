@@ -117,6 +117,10 @@ static QByteArray command(Radio& radio, const QList<QByteArray>& words)
     QTimer::singleShot(ms, [&radio, key] { radio.sim->setKey(key, false); });
     return "ok";
   }
+  if (verb == "rotate" && words.size() == 2) {
+    radio.sim->rotaryEncoderEvent(words[1].toInt());
+    return "ok";
+  }
   if (verb == "channels") {
     QByteArray line = "channels";
     for (qint32 value : radio.outputs) line += ' ' + QByteArray::number(value);
