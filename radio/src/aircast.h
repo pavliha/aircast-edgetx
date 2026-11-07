@@ -23,12 +23,7 @@
 
 #include "hal/serial_driver.h"
 
-// Streams the model's mixed channel outputs over USB-VCP in the text
-// protocol the Aircast app already reads from its EdgeTX Lua script
-// (aircast-usb.lua): "$<ch1>,<ch2>,...,<ch24>,\r\n", repeated at a fixed
-// rate while the port is set to UART_MODE_AIRCAST. Keeping the wire format
-// identical means the app side needs no change to fly from this firmware
-// mode instead of the script.
 #define AIRCAST_BAUDRATE 115200
 
 void aircastSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
+void aircastModelLoaded();

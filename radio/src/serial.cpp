@@ -116,7 +116,6 @@ extern "C" void dbgSerialPrintf(const char * format, ...)
   va_list arglist;
   char tmp[PRINTF_BUFFER_SIZE+1];
 
-  // no need to do anything if we don't have an output
   if (!dbg_serial_putc) return;
 
   va_start(arglist, format);
@@ -178,9 +177,6 @@ static SerialPortState* getSerialPortState(uint8_t port_nr)
   return &serialPortStates[port_nr];
 }
 
-// TODO: replace serialSetupCallBacks & serialSetupPort
-//       with usage based handlers.
-//
 static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* port)
 {
   void (*sendByte)(void*, uint8_t) = nullptr;
@@ -197,7 +193,6 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
     }
   }
 
-  // prevent compiler warnings
   (void)sendByte;
   (void)getByte;
   (void)setRxCb;
@@ -205,7 +200,6 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
   switch(mode) {
 #if defined(DEBUG)
   case UART_MODE_DEBUG:
-    // TODO: should we handle 2 outputs?
     dbgSerialSetSendCb(ctx, sendByte);
     break;
 #endif
@@ -227,16 +221,10 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
 
   case UART_MODE_SBUS_TRAINER:
   case UART_MODE_SBUS_TRAINER_INV:
-    // Nothing to do: the trainer claims the port when (and only when) the
-    // trainer mode selects it as input source. See sbusTrainerAcquire().
     break;
 
   case UART_MODE_TELEMETRY:
-    // telemetrySetGetByte(ctx, getByte);
 
-    // TODO: setRxCb (see MODE_LUA)
-    //       de we really need telemetry
-    //       input over USB VCP?
     break;
 
   case UART_MODE_TELEMETRY_MIRROR:
@@ -269,13 +257,12 @@ static void serialSetCallBacks(int mode, void* ctx, const etx_serial_port_t* por
 
 #if defined(CONFIGURABLE_MODULE_PORT) and !defined(BOOT)
   case UART_MODE_EXT_MODULE:
-    if (port && !ctx) { // de-init
+    if (port && !ctx) {
       etx_module_port_t mod_port;
       memset(&mod_port, 0, sizeof(mod_port));
       auto mod_st = modulePortGetState(EXTERNAL_MODULE);
       if (mod_st && mod_st->tx.port &&
           mod_st->tx.port->hw_def == port->hw_def) {
-        // port is in use, let's stop it
         mixerTaskStop();
         pulsesStop();
         pulsesStopModule(EXTERNAL_MODULE);
@@ -306,7 +293,6 @@ static void serialSetupPort(int mode, etx_serial_init& params)
 
 #if !defined(BOOT)
   case UART_MODE_TELEMETRY_MIRROR:
-    // TODO: query telemetry baudrate / add setting for module
 #if defined(CROSSFIRE)
     if (isModuleCrossfire(EXTERNAL_MODULE) || isModuleCrossfire(INTERNAL_MODULE)) {
       params.baudrate = CROSSFIRE_TELEM_MIRROR_BAUDRATE;
@@ -367,11 +353,11 @@ static void serialSetupPort(int mode, etx_serial_init& params)
 #if defined(AIRCAST)
   case UART_MODE_AIRCAST:
     params.baudrate = AIRCAST_BAUDRATE;
-    params.direction = ETX_Dir_TX;
+    params.direction = ETX_Dir_TX_RX;
     break;
 #endif
 
-#endif // BOOT
+#endif
   }
 }
 
@@ -454,7 +440,6 @@ void serialInit(uint8_t port_nr, int mode)
 
   if (state->port) {
 #if !defined(BOOT)
-    // Drop the trainer input before the driver context goes away
     sbusTrainerReleaseCtx(state->usart_ctx);
 #endif
     auto drv = state->port->uart;
@@ -462,7 +447,6 @@ void serialInit(uint8_t port_nr, int mode)
       drv->deinit(state->usart_ctx);
     }
     if (state->mode != UART_MODE_NONE) {
-      // Clear callbacks
       serialSetCallBacks(state->mode, nullptr, state->port);
     }
     memset(state, 0, sizeof(SerialPortState));
@@ -502,17 +486,14 @@ void serialInit(uint8_t port_nr, int mode)
   auto hw_def = port->hw_def;
   state->usart_ctx = port->uart->init(hw_def, &params);
 
-  // init failed
   if (!state->usart_ctx) return;
 
   state->mode = mode;
   state->port = port;
         
-  // Update callbacks once the port is setup
   serialSetCallBacks(mode, state->usart_ctx, state->port);
 
 #if defined(SWSERIALPOWER)
-  // Set power on/off
   if (port_nr < SP_VCP)
     serialSetPowerState(port_nr);
 #endif
@@ -524,10 +505,6 @@ int serialGetSbusTrainerPort()
   int port_nr = serialGetModePort(UART_MODE_SBUS_TRAINER);
 
 #if defined(STM32H7) || defined(STM32H7RS) || defined(STM32H5)
-  // Ports without a hardware inverter rely on the USART inverting RX itself,
-  // which only exists on these families (see stm32_serial_init()). Elsewhere
-  // the mode cannot work, so do not offer such a port as trainer input even
-  // if a configuration written on another radio selects it.
   if (port_nr < 0) port_nr = serialGetModePort(UART_MODE_SBUS_TRAINER_INV);
 #endif
 
@@ -577,15 +554,6 @@ void serialSetMode(uint8_t port_nr, int mode)
 }
 #endif
 
-// uint8_t serialTracesEnabled(int port_nr)
-// {
-// #if defined(DEBUG)
-//   return serialGetMode(port_nr) == UART_MODE_DEBUG;
-// #else
-//   return false;
-// #endif
-// }
-
 void serialStop(uint8_t port_nr)
 {
   auto state = getSerialPortState(port_nr);
@@ -593,7 +561,6 @@ void serialStop(uint8_t port_nr)
 
   if (state->port) {
 #if !defined(BOOT)
-    // Drop the trainer input before the driver context goes away
     sbusTrainerReleaseCtx(state->usart_ctx);
 #endif
     auto port = state->port;
@@ -602,11 +569,9 @@ void serialStop(uint8_t port_nr)
       drv->deinit(state->usart_ctx);
     }
     if (port->set_pwr) {
-      // Power OFF
       port->set_pwr(0);
     }
     if (state->mode != 0) {
-      // Clear callbacks
       serialSetCallBacks(state->mode, nullptr, nullptr);
     }
   }
