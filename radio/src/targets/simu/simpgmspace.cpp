@@ -311,6 +311,7 @@ uint32_t readTrims()
 }
 
 int usbPlugged() { return false; }
+uint32_t usbSerialFreeSpace() { return 0; }
 int getSelectedUsbMode() { return USB_JOYSTICK_MODE; }
 void setSelectedUsbMode(int mode) {}
 void delay_ms(uint32_t ms) { }

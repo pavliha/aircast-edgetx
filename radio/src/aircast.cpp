@@ -23,6 +23,8 @@
 
 #include <stdio.h>
 
+#include "aircast_layout.h"
+
 #include "edgetx.h"
 #include "hal/adc_driver.h"
 #include "hal/usb_driver.h"
@@ -36,23 +38,6 @@
 #define AIRCAST_RX_BYTES 128
 #define AIRCAST_HEARD_BYTES 96
 
-struct AircastFunction {
-  const char* control;
-  const char* name;
-  uint8_t channel;
-};
-
-static const AircastFunction aircastFunctions[] = {
-    {"RS", "camREB", 18}, {"LS", "camyaw", 20}, {"S2", "zoom", 21},
-    {"SG", "camtyp", 22}, {"SH", "termty", 24}, {"SF", "skld", 11},
-    {"SE", "BOMARM", 12}, {"6POS", "", 5},
-};
-static const AircastFunction aircastModeSwitch = {"SB", "phold", 0};
-
-#define AIRCAST_FUNCTIONS DIM(aircastFunctions)
-#define AIRCAST_BAY (AIRCAST_FUNCTIONS - 1)
-#define AIRCAST_ROLE_COMMAS 7
-
 static const etx_serial_driver_t* aircastSerialDrv = nullptr;
 static void* aircastSerialCtx = nullptr;
 static timer_handle_t aircastTimer = TIMER_INITIALIZER;
@@ -62,8 +47,8 @@ static volatile uint8_t aircastRxHead = 0;
 static volatile uint8_t aircastRxTail = 0;
 static char aircastHeardLine[AIRCAST_HEARD_BYTES];
 static uint8_t aircastHeardLen = 0;
-static uint8_t aircastLayout[AIRCAST_FUNCTIONS];
-static uint8_t aircastModes = 0;
+static AircastMix aircastMixes[AIRCAST_MIXES];
+static uint8_t aircastMixCount = 0;
 static bool aircastLayoutKnown = false;
 
 static void aircastSendLine()
@@ -104,11 +89,11 @@ static uint8_t aircastFirstMix(uint8_t destCh)
   return MAX_MIXERS;
 }
 
-static void aircastSetUp(const AircastFunction& function, uint8_t channel)
+static void aircastSetUp(const AircastMix& wanted)
 {
-  if (channel < 1 || channel > AIRCAST_CHANNEL_COUNT) return;
-  uint8_t destCh = channel - 1;
-  int source = aircastSource(function.control);
+  if (wanted.channel < 1 || wanted.channel > AIRCAST_CHANNEL_COUNT) return;
+  uint8_t destCh = wanted.channel - 1;
+  int source = aircastSource(wanted.control);
   uint8_t first = aircastFirstMix(destCh);
   if (source < 0 || getMixCount() >= MAX_MIXERS || first >= MAX_MIXERS) return;
   MixData* existing = mixAddress(first);
@@ -116,49 +101,33 @@ static void aircastSetUp(const AircastFunction& function, uint8_t channel)
   insertMix(first, destCh);
   MixData* mix = mixAddress(first);
   mix->srcRaw = source;
-  strncpy(mix->name, function.name, sizeof(mix->name));
+  strncpy(mix->name, wanted.name, sizeof(mix->name));
 }
 
 static void aircastSetUpChannels()
 {
-  for (uint8_t at = 0; at < AIRCAST_FUNCTIONS; at++) {
-    if (at == AIRCAST_BAY && !aircastModes) continue;
-    aircastSetUp(aircastFunctions[at], aircastLayout[at]);
-  }
-  aircastSetUp(aircastModeSwitch, aircastModes);
+  for (uint8_t at = 0; at < aircastMixCount; at++) aircastSetUp(aircastMixes[at]);
 }
 
-static uint8_t aircastModesOf(const char* line)
+static bool aircastSameMixes(const AircastMix* mixes, uint8_t count)
 {
-  const char* end = strchr(line, ';');
-  const char* last = nullptr;
-  uint8_t commas = 0;
-  for (const char* c = line; *c && c != end; c++) {
-    if (*c != ',') continue;
-    commas++;
-    last = c;
+  if (!aircastLayoutKnown || count != aircastMixCount) return false;
+  for (uint8_t at = 0; at < count; at++) {
+    if (mixes[at].control != aircastMixes[at].control ||
+        mixes[at].channel != aircastMixes[at].channel)
+      return false;
   }
-  return commas == AIRCAST_ROLE_COMMAS ? (uint8_t)strtoul(last + 1, nullptr, 10) : 0;
+  return true;
 }
 
 static void aircastHeard(const char* line)
 {
   if (line[0] != '@') return;
-  uint8_t layout[AIRCAST_FUNCTIONS];
-  const char* cursor = strchr(line, ';');
-  for (uint8_t at = 0; at < AIRCAST_FUNCTIONS; at++) {
-    if (!cursor) {
-      layout[at] = aircastFunctions[at].channel;
-      continue;
-    }
-    char* end = nullptr;
-    layout[at] = (uint8_t)strtoul(cursor + 1, &end, 10);
-    cursor = (*end == ',') ? end : nullptr;
-  }
-  uint8_t modes = aircastModesOf(line);
-  if (aircastLayoutKnown && modes == aircastModes && !memcmp(layout, aircastLayout, sizeof(layout))) return;
-  memcpy(aircastLayout, layout, sizeof(layout));
-  aircastModes = modes;
+  AircastMix mixes[AIRCAST_MIXES];
+  uint8_t count = aircastMixesFor(line, mixes);
+  if (aircastSameMixes(mixes, count)) return;
+  for (uint8_t at = 0; at < count; at++) aircastMixes[at] = mixes[at];
+  aircastMixCount = count;
   aircastLayoutKnown = true;
   aircastSetUpChannels();
 }

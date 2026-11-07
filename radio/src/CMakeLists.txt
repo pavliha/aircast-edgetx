@@ -458,6 +458,7 @@ set(SRC
   datastructs_radio.cpp
   functions.cpp
   strhelpers.cpp
+  aircast_layout.cpp
   switches.cpp
   analogs.cpp
   mixes.cpp
