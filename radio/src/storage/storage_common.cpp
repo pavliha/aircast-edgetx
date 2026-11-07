@@ -25,8 +25,8 @@
 #include "tasks/mixer_task.h"
 #include "mixes.h"
 #include "switches.h"
-#if defined(AIRCAST)
-#include "aircast.h"
+#if defined(CHANNEL_STREAM)
+#include "channel_stream.h"
 #endif
 
 #if defined(FUNCTION_SWITCHES_RGB_LEDS)
@@ -93,6 +93,8 @@ void preModelLoad()
 void postRadioSettingsLoad()
 {
 #if LCD_W == 128
+  // Prevent GVARS to be off when imported or manually modified yaml
+  // Since there is no way to have those back
   g_eeGeneral.modelGVDisabled = false;
 #endif
 
@@ -102,9 +104,17 @@ void postRadioSettingsLoad()
   }
 #endif
 #if defined(PCBX12S) && defined(INTERNAL_GPS)
+  // AUX2 is hardwired to AUX2 on X12S
   serialSetMode(SP_AUX2, UART_MODE_GPS);
 #endif
+#if defined(USB_SERIAL) && defined(CHANNEL_STREAM)
+  if (serialGetMode(SP_VCP) == UART_MODE_NONE) {
+    serialSetMode(SP_VCP, UART_MODE_CHANNELS);
+  }
+#endif
 #if defined(USB_SERIAL)
+  // default VCP to CLI if not configured
+  // to something else as NONE.
   if (isInternalModuleCrossfire() && serialGetMode(SP_VCP) == UART_MODE_NONE) {
     serialSetMode(SP_VCP, UART_MODE_CLI);
   }
@@ -115,6 +125,7 @@ void postRadioSettingsLoad()
   }
 #endif
 #if !defined(DEBUG)
+  // clean up leftovers from a previous DEBUG config
   for (uint8_t port_nr = 0; port_nr < MAX_AUX_SERIAL; port_nr++) {
     if (serialGetMode(port_nr) == UART_MODE_DEBUG)
       serialSetMode(port_nr, UART_MODE_NONE);
@@ -124,6 +135,7 @@ void postRadioSettingsLoad()
 
 static bool sortMixerLines()
 {
+  // simple bubble sort
   unsigned passes = 0;
   unsigned swaps;
   MixData tmp;
@@ -147,6 +159,8 @@ static bool sortMixerLines()
     ++passes;
   } while(swaps > 0);
 
+  // anything above 1 means that
+  // we changed something
   return passes > 1;
 }
 
@@ -159,26 +173,30 @@ static void sanitizeMixerLines()
 
 void postModelLoad(bool alarms)
 {
-#if defined(AIRCAST)
-  aircastModelLoaded();
+#if defined(CHANNEL_STREAM)
+  channelStreamModelLoaded();
 #endif
 #if defined(COLORLCD)
   if (!g_model.hasScreenData(0))
     LayoutFactory::loadDefaultLayout();
 
   if (g_model.topbarWidgetWidth[0] == 0) {
+    // Set default width for top bar widgets
     for (int i = 0; i < MAX_TOPBAR_ZONES; i += 1)
       g_model.topbarWidgetWidth[i] = 1;
 
+    // Load 'date time' widget if slot is empty
     if (!g_model.getTopbarData()->hasWidget(MAX_TOPBAR_ZONES-1)) {
       g_model.getTopbarData()->setWidgetName(MAX_TOPBAR_ZONES-1, "Date Time");
       storageDirty(EE_MODEL);
     }
+    // Load 'radio info' widget if slot is empty
     if (!g_model.getTopbarData()->hasWidget(MAX_TOPBAR_ZONES-2)) {
       g_model.getTopbarData()->setWidgetName(MAX_TOPBAR_ZONES-2, "Radio Info");
       storageDirty(EE_MODEL);
     }
 #if defined(INTERNAL_GPS)
+    // Load 'internal gps' widget if slot is empty
     if (!g_model.getTopbarData()->hasWidget(MAX_TOPBAR_ZONES-3)) {
       g_model.getTopbarData()->setWidgetName(MAX_TOPBAR_ZONES-3, "Internal GPS");
       storageDirty(EE_MODEL);
@@ -186,6 +204,8 @@ void postModelLoad(bool alarms)
 #endif
   }
 #elif LCD_W == 128
+  // Prevent GVARS to be off when imported or manually modified yaml
+  // Since there is no way to have those back
   g_model.modelGVDisabled = false;
 #endif
 
@@ -193,18 +213,22 @@ void postModelLoad(bool alarms)
   setFSStartupPosition();
 #endif
 
+  // Convert 'noGlobalFunctions' to 'radioGFDisabled'
+  // TODO: Remove sometime in the future (and remove 'noGlobalFunctions' property)
   if (g_model.noGlobalFunctions) {
     g_model.radioGFDisabled = OVERRIDE_OFF;
     g_model.noGlobalFunctions = 0;
     storageDirty(EE_MODEL);
   }
 
+// fix #2552: reset rssiSource to default none (= 0)
 if(g_model.rssiSource) {
   g_model.rssiSource = 0;
 
   storageDirty(EE_MODEL);  
 }
 #if defined(STM32F4) && defined(CROSSFIRE)
+  // Limit ext. CRSF speed to 3.75Mbps due to CRC errors at higher speeds
   if(isModuleCrossfire(EXTERNAL_MODULE) && g_model.moduleData[EXTERNAL_MODULE].crsf.telemetryBaudrate == 4) {
 	TRACE("Downgrading external ELRS module baudrate");
     g_model.moduleData[EXTERNAL_MODULE].crsf.telemetryBaudrate = 3;
@@ -222,6 +246,7 @@ if(g_model.rssiSource) {
     }
   }
 
+  // fix colorLCD radios not writing yaml tag receivers
   if(isModulePXX2(INTERNAL_MODULE)) {
     ModuleData *intModule = &g_model.moduleData[INTERNAL_MODULE];
     unsigned int oldVal = intModule->pxx2.receivers;
@@ -263,7 +288,7 @@ if(g_model.rssiSource) {
     TelemetrySensor & sensor = g_model.telemetrySensors[i];
     if (sensor.type == TELEM_TYPE_CALCULATED && sensor.persistent) {
       telemetryItems[i].value = sensor.persistentValue;
-      telemetryItems[i].timeout = 0;
+      telemetryItems[i].timeout = 0; // make value visible even before the first new value is received)
     }
     else {
       telemetryItems[i].timeout = TELEMETRY_SENSOR_TIMEOUT_UNAVAILABLE;
@@ -280,6 +305,9 @@ if(g_model.rssiSource) {
   }
 #endif
 
+  // Mixer should only be restarted
+  // if we are switching between models,
+  // not on first boot (started later on)
   if (mixerTaskStarted()) {
     pulsesStart();
   }
@@ -294,11 +322,12 @@ if(g_model.rssiSource) {
 
   SEND_FAILSAFE_1S();
 
+  // Reset debug stats for the newly loaded model (after checkAll() warnings)
   maxMixerDuration = 0;
 #if defined(LUA)
   maxLuaInterval = 0;
   maxLuaDuration = 0;
-  lastLuaTime = 0;
+  lastLuaTime = 0;  // avoids counting the load time as one huge interval spike
 #endif
 }
 
@@ -331,7 +360,7 @@ void selectModel(uint8_t idx)
   showMessageBox(STR_LOADINGMODEL);
 #endif
   storageFlushCurrentModel();
-  storageCheck(true);
+  storageCheck(true); // force writing of current model data before this is changed
   g_eeGeneral.currModel = idx;
   storageDirty(EE_GENERAL);
   loadModel(idx);
@@ -347,7 +376,7 @@ uint8_t findEmptyModel(uint8_t id, bool down)
   for (;;) {
     i = (MAX_MODELS + (down ? i+1 : i-1)) % MAX_MODELS;
     if (!modelExists(i)) break;
-    if (i == id) return 0xff;
+    if (i == id) return 0xff; // no free space in directory left
   }
   return i;
 }
@@ -381,10 +410,12 @@ uint8_t findNextUnusedModelId(uint8_t index, uint8_t module)
   for (uint8_t id = 1; id <= getMaxRxNum(module); id++) {
     uint8_t mask = 1u << (id & 7u);
     if (!(usedModelIds[id >> 3u] & mask)) {
+      // found free ID
       return id;
     }
   }
 
+  // failed finding something...
   return 0;
 }
 #endif

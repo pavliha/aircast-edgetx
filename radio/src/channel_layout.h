@@ -21,9 +21,14 @@
 
 #pragma once
 
-#include "hal/serial_driver.h"
+#include <stdint.h>
 
-#define AIRCAST_BAUDRATE 115200
+#define CHANNEL_MIXES 9
 
-void aircastSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
-void aircastModelLoaded();
+struct ChannelMix {
+  const char* control;
+  const char* name;
+  uint8_t channel;
+};
+
+uint8_t channelMixesFor(const char* echo, ChannelMix mixes[CHANNEL_MIXES]);

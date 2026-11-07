@@ -19,24 +19,24 @@
  * GNU General Public License for more details.
  */
 
-#include "aircast_layout.h"
+#include "channel_layout.h"
 
 #include <stdlib.h>
 #include <string.h>
 
-#define AIRCAST_ROLE_COMMAS 7
+#define CHANNEL_STREAM_ROLE_COMMAS 7
 
-static const AircastMix aircastFunctions[] = {
+static const ChannelMix channelStreamFunctions[] = {
     {"RS", "camREB", 18}, {"LS", "camyaw", 20}, {"S2", "zoom", 21},
     {"SG", "camtyp", 22}, {"SH", "termty", 24}, {"SF", "skld", 11},
     {"SE", "BOMARM", 12}, {"6POS", "", 5},
 };
-static const AircastMix aircastModeSwitch = {"SB", "phold", 0};
+static const ChannelMix channelStreamModeSwitch = {"SB", "phold", 0};
 
-#define AIRCAST_FUNCTIONS (sizeof(aircastFunctions) / sizeof(aircastFunctions[0]))
-#define AIRCAST_BAY (AIRCAST_FUNCTIONS - 1)
+#define CHANNEL_STREAM_FUNCTIONS (sizeof(channelStreamFunctions) / sizeof(channelStreamFunctions[0]))
+#define CHANNEL_STREAM_BAY (CHANNEL_STREAM_FUNCTIONS - 1)
 
-static uint8_t aircastModeChannelOf(const char* echo)
+static uint8_t channelStreamModeChannelOf(const char* echo)
 {
   const char* end = strchr(echo, ';');
   const char* last = nullptr;
@@ -46,29 +46,29 @@ static uint8_t aircastModeChannelOf(const char* echo)
     commas++;
     last = c;
   }
-  return commas == AIRCAST_ROLE_COMMAS ? (uint8_t)strtoul(last + 1, nullptr, 10)
+  return commas == CHANNEL_STREAM_ROLE_COMMAS ? (uint8_t)strtoul(last + 1, nullptr, 10)
                                        : 0;
 }
 
-uint8_t aircastMixesFor(const char* echo, AircastMix mixes[AIRCAST_MIXES])
+uint8_t channelMixesFor(const char* echo, ChannelMix mixes[CHANNEL_MIXES])
 {
   const char* cursor = strchr(echo, ';');
   bool named = cursor != nullptr;
-  uint8_t modeChannel = aircastModeChannelOf(echo);
+  uint8_t modeChannel = channelStreamModeChannelOf(echo);
   uint8_t count = 0;
-  for (uint8_t at = 0; at < AIRCAST_FUNCTIONS; at++) {
-    uint8_t channel = named ? 0 : aircastFunctions[at].channel;
+  for (uint8_t at = 0; at < CHANNEL_STREAM_FUNCTIONS; at++) {
+    uint8_t channel = named ? 0 : channelStreamFunctions[at].channel;
     if (cursor) {
       char* end = nullptr;
       channel = (uint8_t)strtoul(cursor + 1, &end, 10);
       cursor = (*end == ',') ? end : nullptr;
     }
-    if (at == AIRCAST_BAY && !modeChannel) continue;
-    mixes[count] = aircastFunctions[at];
+    if (at == CHANNEL_STREAM_BAY && !modeChannel) continue;
+    mixes[count] = channelStreamFunctions[at];
     mixes[count++].channel = channel;
   }
   if (modeChannel) {
-    mixes[count] = aircastModeSwitch;
+    mixes[count] = channelStreamModeSwitch;
     mixes[count++].channel = modeChannel;
   }
   return count;

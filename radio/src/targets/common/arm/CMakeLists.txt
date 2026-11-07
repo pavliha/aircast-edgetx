@@ -286,7 +286,7 @@ foreach(LANGUAGE ${TTS_LANGUAGES})
   set(SRC ${SRC} translations/tts/tts_${lang_lower}.cpp)
 endforeach()
 
-add_definitions(-DAIRCAST)
+add_definitions(-DCHANNEL_STREAM)
 
 set(SRC
   ${SRC}
@@ -301,7 +301,7 @@ set(SRC
   telemetry/spektrum.cpp
   crc.cpp
   vario.cpp
-  aircast.cpp
+  channel_stream.cpp
   )
 
 set(FIRMWARE_TARGET_SRC

@@ -5,7 +5,7 @@ sd=/tmp/sd
 rm -rf "$sd"
 cp -R /opt/vradio/sd "$sd"
 port_mode=LUA
-[ "$mode" = firmware ] && port_mode=AIRCAST
+[ "$mode" = firmware ] && port_mode=CHANNELS
 printf 'serialPort: \n   AUX1:\n      mode: %s\n      power: 0\n' "$port_mode" >> "$sd/RADIO/radio.yml"
 if [ "$mode" = lua ]; then
   mkdir -p "$sd/SCRIPTS/TOOLS"

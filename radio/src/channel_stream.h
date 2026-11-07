@@ -21,14 +21,15 @@
 
 #pragma once
 
-#include <stdint.h>
+#include "hal/serial_driver.h"
 
-#define AIRCAST_MIXES 9
+// Streams the model's mixed channel outputs over USB-VCP in the text
+// protocol the Aircast app already reads from its EdgeTX Lua script
+// (aircast-usb.lua): "$<ch1>,<ch2>,...,<ch24>,\r\n", repeated at a fixed
+// rate while the port is set to UART_MODE_CHANNELS. Keeping the wire format
+// identical means the app side needs no change to fly from this firmware
+// mode instead of the script.
+#define CHANNEL_STREAM_BAUDRATE 115200
 
-struct AircastMix {
-  const char* control;
-  const char* name;
-  uint8_t channel;
-};
-
-uint8_t aircastMixesFor(const char* echo, AircastMix mixes[AIRCAST_MIXES]);
+void channelStreamSetSerialDriver(void* ctx, const etx_serial_driver_t* drv);
+void channelStreamModelLoaded();
