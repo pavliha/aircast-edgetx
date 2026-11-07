@@ -127,6 +127,13 @@ if(Qt6Widgets_FOUND)
   #
   add_custom_target(libsimulator DEPENDS ${SIMULATOR_TARGET})
 
+  find_package(Qt6 COMPONENTS Network Gui)
+  if(Qt6Network_FOUND)
+    add_executable(vradio EXCLUDE_FROM_ALL vradio.cpp)
+    target_compile_definitions(vradio PRIVATE ${APP_COMMON_DEFINES})
+    target_link_libraries(vradio ${SIMULATOR_TARGET} Qt::Core Qt::Network Qt::Gui)
+  endif()
+
   # Prepare the "all-simu-libs" target to build simulator libraries for *every* supported PCB type (PCB_TYPES list)
   #  (a fast build machine or corresponding amount of patience is recommended for this target).
   if(${CMAKE_GENERATOR} MATCHES ".*Unix Makefiles$")

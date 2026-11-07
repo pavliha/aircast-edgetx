@@ -159,8 +159,17 @@ static void aircastDrain()
   }
 }
 
+static void aircastPoll()
+{
+  if (aircastSerialDrv->setReceiveCb || !aircastSerialDrv->getByte) return;
+  uint8_t byte;
+  while (aircastSerialDrv->getByte(aircastSerialCtx, &byte) > 0)
+    aircastReceive(&byte, 1);
+}
+
 static void aircastTimerCb(timer_handle_t*)
 {
+  aircastPoll();
   aircastDrain();
   aircastSendLine();
 }
