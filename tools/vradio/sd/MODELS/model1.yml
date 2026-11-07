@@ -94,7 +94,7 @@ expoData:
    mode: 3
    scale: 0
    trimSource: 0
-   srcRaw: "Rud"
+   srcRaw: "Ail"
    weight: 100
    offset: 0
    swtch: "NONE"
@@ -136,7 +136,7 @@ expoData:
    mode: 3
    scale: 0
    trimSource: 0
-   srcRaw: "Ail"
+   srcRaw: "Rud"
    weight: 100
    offset: 0
    swtch: "NONE"
@@ -171,13 +171,13 @@ potsWarnMode: WARN_OFF
 jitterFilter: GLOBAL
 inputNames: 
    0:
-      val: "Rud"
+      val: "Ail"
    1:
       val: "Ele"
    2:
       val: "Thr"
    3:
-      val: "Ail"
+      val: "Rud"
 potsWarnEnabled: 0
 screenData: 
    0:

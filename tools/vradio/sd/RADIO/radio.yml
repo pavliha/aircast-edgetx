@@ -89,7 +89,7 @@ beepMode: mode_nokeys
 alarmsFlash: 0
 disableMemoryWarning: 0
 disableAlarmWarning: 0
-stickMode: 0
+stickMode: 1
 timezone: 0
 adjustRTC: 0
 inactivityTimer: 10
