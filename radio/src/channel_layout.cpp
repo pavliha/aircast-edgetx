@@ -29,12 +29,13 @@
 static const ChannelMix channelStreamFunctions[] = {
     {"RS", "camREB", 18}, {"LS", "camyaw", 20}, {"S2", "zoom", 21},
     {"SG", "camtyp", 22}, {"SH", "termty", 24}, {"SF", "skld", 11},
-    {"SE", "BOMARM", 12}, {"6POS", "", 5},
+    {"SE", "BOMARM", 12}, {"6POS", "", 5},   {"S1", "campit", 19},
+    {"SC", "cam90", 23},
 };
 static const ChannelMix channelStreamModeSwitch = {"SB", "phold", 0};
 
 #define CHANNEL_STREAM_FUNCTIONS (sizeof(channelStreamFunctions) / sizeof(channelStreamFunctions[0]))
-#define CHANNEL_STREAM_BAY (CHANNEL_STREAM_FUNCTIONS - 1)
+#define CHANNEL_STREAM_BAY 7
 
 static uint8_t channelStreamModeChannelOf(const char* echo)
 {
