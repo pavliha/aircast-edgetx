@@ -29,6 +29,7 @@ struct ChannelMix {
   const char* control;
   const char* name;
   uint8_t channel;
+  int8_t weight = 100;
 };
 
 uint8_t channelMixesFor(const char* echo, ChannelMix mixes[CHANNEL_MIXES]);

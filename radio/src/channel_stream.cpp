@@ -101,6 +101,7 @@ static void channelStreamSetUp(const ChannelMix& wanted)
   insertMix(first, destCh);
   MixData* mix = mixAddress(first);
   mix->srcRaw = source;
+  mix->weight = makeSourceNumVal(wanted.weight);
   strncpy(mix->name, wanted.name, sizeof(mix->name));
 }
 

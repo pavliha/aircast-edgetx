@@ -30,6 +30,14 @@ static uint8_t channelOf(const ChannelMix* mixes, uint8_t count, const char* con
   return 0;
 }
 
+static int8_t weightOf(const ChannelMix* mixes, uint8_t count, const char* control)
+{
+  for (uint8_t at = 0; at < count; at++) {
+    if (!strcmp(mixes[at].control, control)) return mixes[at].weight;
+  }
+  return 0;
+}
+
 static const char* nameOf(const ChannelMix* mixes, uint8_t count, const char* control)
 {
   for (uint8_t at = 0; at < count; at++) {
@@ -51,6 +59,15 @@ TEST(ChannelLayout, AnAppThatNamesNoLayoutGetsTheR2d2CameraAndPayloadChannels)
   EXPECT_EQ(0, channelOf(mixes, count, "SB"));
   EXPECT_EQ(19, channelOf(mixes, count, "S1"));
   EXPECT_EQ(23, channelOf(mixes, count, "SC"));
+}
+
+TEST(ChannelLayout, TheLookSwitchIsReversedSoUpReadsHighAndPointsTheCameraAhead)
+{
+  ChannelMix mixes[CHANNEL_MIXES];
+  uint8_t count = channelMixesFor("@F,1", mixes);
+  EXPECT_EQ(-100, weightOf(mixes, count, "SC"));
+  EXPECT_EQ(100, weightOf(mixes, count, "RS"));
+  EXPECT_EQ(100, weightOf(mixes, count, "LS"));
 }
 
 TEST(ChannelLayout, ADroneWithFlightModesOnCh10GetsTheWholeR2d2Model)
