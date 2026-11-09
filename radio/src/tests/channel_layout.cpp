@@ -50,7 +50,7 @@ TEST(ChannelLayout, AnAppThatNamesNoLayoutGetsTheR2d2CameraAndPayloadChannels)
 {
   ChannelMix mixes[CHANNEL_MIXES];
   uint8_t count = channelMixesFor("@F,1", mixes);
-  EXPECT_EQ(9, count);
+  EXPECT_EQ(10, count);
   EXPECT_EQ(18, channelOf(mixes, count, "RS"));
   EXPECT_STREQ("camREB", mixes[0].name);
   EXPECT_EQ(20, channelOf(mixes, count, "LS"));
@@ -59,6 +59,8 @@ TEST(ChannelLayout, AnAppThatNamesNoLayoutGetsTheR2d2CameraAndPayloadChannels)
   EXPECT_EQ(0, channelOf(mixes, count, "SB"));
   EXPECT_EQ(19, channelOf(mixes, count, "S1"));
   EXPECT_EQ(23, channelOf(mixes, count, "SC"));
+  EXPECT_EQ(17, channelOf(mixes, count, "SD"));
+  EXPECT_STREQ("stkcam", nameOf(mixes, count, "SD"));
 }
 
 TEST(ChannelLayout, TheLookSwitchIsReversedSoUpReadsHighAndPointsTheCameraAhead)
@@ -74,7 +76,7 @@ TEST(ChannelLayout, ADroneWithFlightModesOnCh10GetsTheWholeR2d2Model)
 {
   ChannelMix mixes[CHANNEL_MIXES];
   uint8_t count = channelMixesFor("@F,1,C,1,2,3,4,10;18,20,21,22,24,11,12,5,19,23", mixes);
-  EXPECT_EQ(11, count);
+  EXPECT_EQ(12, count);
   EXPECT_EQ(5, channelOf(mixes, count, "6POS"));
   EXPECT_EQ(10, channelOf(mixes, count, "SB"));
   EXPECT_STREQ("phold", mixes[count - 1].name);
@@ -88,7 +90,7 @@ TEST(ChannelLayout, AnOlderAppThatNamesEightChannelsLeavesTheTiltKnobAndTheLookS
 {
   ChannelMix mixes[CHANNEL_MIXES];
   uint8_t count = channelMixesFor("@F,1,C,1,2,3,4,10;18,20,21,22,24,11,12,5", mixes);
-  EXPECT_EQ(11, count);
+  EXPECT_EQ(12, count);
   EXPECT_EQ(5, channelOf(mixes, count, "6POS"));
   EXPECT_EQ(10, channelOf(mixes, count, "SB"));
   EXPECT_EQ(0, channelOf(mixes, count, "S1"));
@@ -99,7 +101,7 @@ TEST(ChannelLayout, AnAppThatTurnsTiltOffLeavesTheTiltKnobOff)
 {
   ChannelMix mixes[CHANNEL_MIXES];
   uint8_t count = channelMixesFor("@F,1,C,1,2,3,4,10;18,20,21,22,24,11,12,5,0,23", mixes);
-  EXPECT_EQ(11, count);
+  EXPECT_EQ(12, count);
   EXPECT_EQ(0, channelOf(mixes, count, "S1"));
   EXPECT_EQ(23, channelOf(mixes, count, "SC"));
 }
@@ -108,7 +110,7 @@ TEST(ChannelLayout, ADroneWithFlightModesOnCh5GetsTheModeSwitchThereAndNoBaySwit
 {
   ChannelMix mixes[CHANNEL_MIXES];
   uint8_t count = channelMixesFor("@F,1,C,1,2,3,4,5;18,20,21,22,24,11,12,0", mixes);
-  EXPECT_EQ(11, count);
+  EXPECT_EQ(12, count);
   EXPECT_EQ(0, channelOf(mixes, count, "6POS"));
   EXPECT_EQ(5, channelOf(mixes, count, "SB"));
 }
@@ -117,7 +119,7 @@ TEST(ChannelLayout, AnOlderAppWithoutAFlightModeChannelSetsUpNoModeOrBaySwitch)
 {
   ChannelMix mixes[CHANNEL_MIXES];
   uint8_t count = channelMixesFor("@F,1,C,1,2,3,4;13,14,15,0,0,0,0,0", mixes);
-  EXPECT_EQ(9, count);
+  EXPECT_EQ(10, count);
   EXPECT_EQ(13, channelOf(mixes, count, "RS"));
   EXPECT_EQ(0, channelOf(mixes, count, "SF"));
   EXPECT_EQ(0, channelOf(mixes, count, "SB"));
@@ -127,8 +129,18 @@ TEST(ChannelLayout, AFunctionTheAppsLayoutLeavesOutIsOff)
 {
   ChannelMix mixes[CHANNEL_MIXES];
   uint8_t count = channelMixesFor("@N;13", mixes);
-  EXPECT_EQ(9, count);
+  EXPECT_EQ(10, count);
   EXPECT_EQ(13, channelOf(mixes, count, "RS"));
   EXPECT_EQ(0, channelOf(mixes, count, "LS"));
   EXPECT_EQ(0, channelOf(mixes, count, "S1"));
+}
+
+TEST(ChannelLayout, TheStickCameraSwitchIsSetUpOnlyWhenTheAppReadsIt)
+{
+  ChannelMix mixes[CHANNEL_MIXES];
+  uint8_t count = channelMixesFor("@F,1,C,1,2,3,4,10;18,20,21,22,24,11,12,5,19,23,17", mixes);
+  EXPECT_EQ(17, channelOf(mixes, count, "SD"));
+  EXPECT_STREQ("stkcam", nameOf(mixes, count, "SD"));
+  count = channelMixesFor("@F,1,C,1,2,3,4,10;18,20,21,22,24,11,12,5,19,23", mixes);
+  EXPECT_EQ(0, channelOf(mixes, count, "SD"));
 }

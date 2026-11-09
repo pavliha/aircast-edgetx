@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 
-#define CHANNEL_MIXES 11
+#define CHANNEL_MIXES 12
 
 struct ChannelMix {
   const char* control;
